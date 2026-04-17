@@ -80,6 +80,7 @@ database, then runs lint and build verification.
 - on the free Vercel path, use `Preview` as the online test environment
 - keep PostgreSQL external and provide the connection string through Vercel environment variables
 - use `.vercelignore` to avoid uploading local-only files and deployment configs that are not needed on Vercel
+- the build command now regenerates Prisma Client before `next build` so hosted deployments stay in sync with the Prisma schema
 
 ## Railway Staging Notes
 
