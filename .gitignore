@@ -1,0 +1,27 @@
+# Root Git ignore for the project workspace
+
+# App dependencies and build output
+hrms-portal/node_modules/
+hrms-portal/.next/
+hrms-portal/out/
+hrms-portal/build/
+
+# Environment files
+hrms-portal/.env
+hrms-portal/.env.*
+!hrms-portal/.env.example
+!hrms-portal/.env.staging.example
+!hrms-portal/.env.production.example
+
+# Runtime and QA logs
+hrms-portal/*.log
+hrms-portal/*.pid
+hrms-portal/qa-*.log
+hrms-portal/qa-*.pid
+
+# Vercel local metadata
+hrms-portal/.vercel/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

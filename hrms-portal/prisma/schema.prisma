@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AppRole {
+  TENANT_ADMIN
+  HR_ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  ON_TIME
+  LATE
+  MISSING_CLOCK_OUT
+  COMPLETE
+  FLAGGED
+}
+
+model Tenant {
+  id              String             @id @default(cuid())
+  code            String             @unique
+  name            String
+  contactEmail    String?
+  active          Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  departments     Department[]
+  users           UserAccount[]
+  employees       Employee[]
+  leavePolicies   LeavePolicy[]
+  leaveRequests   LeaveRequest[]
+  attendanceLogs  AttendanceRecord[]
+  auditLogs       AuditLog[]
+}
+
+model LeavePolicy {
+  id             String   @id @default(cuid())
+  tenantId       String
+  code           String
+  name           String
+  enabled        Boolean  @default(true)
+  openingBalance Float    @default(0)
+  entitlement    Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, name])
+}
+
+model Department {
+  id                String    @id @default(cuid())
+  tenantId          String
+  code              String
+  name              String
+  description       String?
+  managerEmployeeId String?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  managerEmployee   Employee? @relation("DepartmentManager", fields: [managerEmployeeId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, name])
+}
+
+model UserAccount {
+  id              String             @id @default(cuid())
+  tenantId        String
+  employeeId      String?            @unique
+  email           String             @unique
+  passwordHash    String
+  role            AppRole
+  active          Boolean            @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee        Employee?          @relation("EmployeeUser", fields: [employeeId], references: [id])
+  approvalActions LeaveRequest[]     @relation("LeaveApprover")
+  attendanceReviews AttendanceRecord[] @relation("AttendanceReviewer")
+  auditLogs       AuditLog[]         @relation("AuditActor")
+}
+
+model Employee {
+  id              String             @id @default(cuid())
+  tenantId        String
+  employeeCode    String
+  fullName        String
+  preferredName   String?
+  email           String
+  phoneNumber     String?
+  identityNumber  String?
+  employmentStatus String
+  department      String
+  jobTitle        String
+  managerId       String?
+  hireDate        DateTime?
+  workLocation    String?
+  profileStatus   String             @default("ACTIVE")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            UserAccount?       @relation("EmployeeUser")
+  manager         Employee?          @relation("EmployeeManager", fields: [managerId], references: [id])
+  directReports   Employee[]         @relation("EmployeeManager")
+  managedDepartments Department[]    @relation("DepartmentManager")
+  leaveRequests   LeaveRequest[]
+  attendanceLogs  AttendanceRecord[]
+
+  @@unique([tenantId, employeeCode])
+  @@unique([tenantId, email])
+}
+
+model LeaveRequest {
+  id              String             @id @default(cuid())
+  tenantId        String
+  employeeId      String
+  approverUserId  String?
+  leaveType       String
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Float
+  reason          String
+  status          LeaveStatus        @default(PENDING)
+  approvalRemarks String?
+  actedAt         DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee        Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approver        UserAccount?       @relation("LeaveApprover", fields: [approverUserId], references: [id])
+}
+
+model AttendanceRecord {
+  id              String             @id @default(cuid())
+  tenantId        String
+  employeeId      String
+  attendanceDate  DateTime
+  timeIn          DateTime?
+  timeOut         DateTime?
+  status          AttendanceStatus
+  remarks         String?
+  reviewedByUserId String?
+  reviewedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee        Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy      UserAccount?       @relation("AttendanceReviewer", fields: [reviewedByUserId], references: [id])
+
+  @@unique([tenantId, employeeId, attendanceDate])
+}
+
+model AuditLog {
+  id              String             @id @default(cuid())
+  tenantId        String
+  actorUserId     String?
+  module          String
+  actionType      String
+  targetRecordId  String
+  beforeValue     Json?
+  afterValue      Json?
+  createdAt       DateTime           @default(now())
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor           UserAccount?       @relation("AuditActor", fields: [actorUserId], references: [id])
+}
